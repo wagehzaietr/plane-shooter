@@ -99,15 +99,28 @@
   canvas.addEventListener('pointercancel', () => pointerDown = false);
 
   // Audio (simple bleepy sfx; initialized on first interaction)
-  let actx, master;
+  let actx, master, backgroundMusic;
   function unlockAudio() {
     if (actx) return;
     actx = new (window.AudioContext || window.webkitAudioContext)();
     master = actx.createGain();
     master.gain.value = 0.2;
     master.connect(actx.destination);
+    
+    // Load and play background music
+    if (!backgroundMusic) {
+      backgroundMusic = new Audio('assets/sounds/background-music.mp3');
+      backgroundMusic.loop = true;
+      backgroundMusic.volume = 0.3; // Lower volume for background
+    }
+    
     // Resume context if needed
     if (actx.state === 'suspended') actx.resume();
+    
+    // Play background music
+    backgroundMusic.play().catch(e => {
+      console.log('Background music failed to start:', e);
+    });
   }
   function beep(freq=440, dur=0.07, type='square', vol=0.25) {
     if (!actx) return;
@@ -680,6 +693,11 @@
     game.over = true;
     game.hi = Math.max(game.hi, game.score);
     localStorage.setItem('rh_hi', String(game.hi));
+    
+    // Pause background music on game win
+    if (backgroundMusic && !backgroundMusic.paused) {
+      backgroundMusic.pause();
+    }
   }
   function restart() {
     game.time = 0; game.dt = 0;
@@ -693,6 +711,14 @@
     bouncingBallTimer = 5.0; fireworksTimer = 4.0; plasmaBallTimer = 6.0; // reset upgrade timers
     enemyTimer = 0; spawnInterval = 1.2; shakeMag = 0;
     game.startStamp = performance.now();
+    // Restart background music if it exists
+    if (backgroundMusic) {
+      backgroundMusic.currentTime = 0;
+      if (backgroundMusic.paused) {
+        backgroundMusic.play().catch(e => console.log('Music restart failed:', e));
+      }
+    }
+    
     // Start first wave after restart
     setTimeout(() => startWave(), 100);
   }
@@ -700,6 +726,11 @@
     game.over = true;
     game.hi = Math.max(game.hi, game.score);
     localStorage.setItem('rh_hi', String(game.hi));
+    
+    // Pause background music on game over
+    if (backgroundMusic && !backgroundMusic.paused) {
+      backgroundMusic.pause();
+    }
   }
 
   // Collision
