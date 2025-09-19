@@ -1058,8 +1058,12 @@
         }
       }
 
-      // Offscreen
-      if (e.y > H + 60) enemies.splice(i,1);
+      // Offscreen - count as "escaped" to finish wave
+      if (e.y > H + 60) {
+        enemies.splice(i,1);
+        game.enemiesKilledThisWave++; // Count escaped enemies toward wave completion
+        console.log(`Enemy escaped off-screen. Progress: ${game.enemiesKilledThisWave}/${game.enemiesThisWave}`);
+      }
     }
 
     // Update bullets
