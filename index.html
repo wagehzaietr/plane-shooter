@@ -94,6 +94,12 @@
     pointerX = e.clientX;
     unlockAudio();
     
+    // Handle game restart on mobile when game is over
+    if (game.over) {
+      restart();
+      return;
+    }
+    
     // Handle upgrade selection on mobile
     if (game.showUpgrades) {
       const rect = canvas.getBoundingClientRect();
@@ -272,7 +278,7 @@
       amp: 80, // Wider movement
       freq: 0.5, // Slower movement
       vy: 40, // Slower descent
-      hp: 25 + game.wave * 2, // Much more health
+      hp: 45 + game.wave * 2, // Much more health
       shootCd: 0.3, // Shoots faster
       seed: R()*1000,
       radius: 40, // Larger collision radius
@@ -669,7 +675,7 @@
       }
       ctx.font = '700 22px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
       ctx.fillText(`Score: ${game.score}  •  Best: ${game.hi}`, W/2, H/2 + 8);
-      ctx.fillText('Press R to restart', W/2, H/2 + 40);
+      ctx.fillText('Press R to restart or tap anywhere', W/2, H/2 + 40);
       ctx.restore();
     }
   }
