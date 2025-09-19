@@ -24,6 +24,7 @@
   /* Subtle in-page help badge */
   .hint {
     position: fixed;
+    display: none;
     left: 10px;
     bottom: 10px;
     color: #4a3422;
@@ -39,7 +40,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
-<div class="hint">Move: ←/→ or A/D • Shoot: Space • Touch: Drag/Hold</div>
+<div class="hint">Move: Arrow Keys or WASD • Shoot: Space • Touch: Drag/Hold</div>
 <script>
 (() => {
   // Canvas setup with HiDPI support
@@ -66,8 +67,9 @@
   const keys = new Set();
   let pointerDown = false;
   let pointerX = W / 2;
+  let pointerY = H * 0.8;
   window.addEventListener('keydown', e => {
-    if (['ArrowLeft', 'ArrowRight', 'Space', 'a', 'd', 'A', 'D', 'r', 'R', '1', '2', '3'].includes(e.key)) e.preventDefault();
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'a', 'd', 'A', 'D', 'w', 's', 'W', 'S', 'r', 'R', '1', '2', '3'].includes(e.key)) e.preventDefault();
     keys.add(e.key);
     if ((e.key === 'r' || e.key === 'R') && game.over) restart();
     
@@ -142,7 +144,10 @@
     }
   });
   canvas.addEventListener('pointerup', () => pointerDown = false);
-  canvas.addEventListener('pointermove', e => pointerX = e.clientX, { passive: true });
+  canvas.addEventListener('pointermove', e => {
+    pointerX = e.clientX;
+    pointerY = e.clientY;
+  }, { passive: true });
   canvas.addEventListener('pointercancel', () => pointerDown = false);
 
   // Audio (simple bleepy sfx; initialized on first interaction)
@@ -198,13 +203,16 @@
   const enemyPlaneImg1 = new Image();
   const enemyPlaneImg2 = new Image();
   const bossImg = new Image();
+  const rocketImg = new Image();
   enemyPlaneImg1.src = 'assets/images/enemies.png';
   enemyPlaneImg2.src = 'assets/images/enemies2.png';
   bossImg.src = 'assets/images/enemies2.png'; // Using enemies2 for boss, but larger
+  rocketImg.src = 'assets/images/rockets.png';
   let enemyImagesLoaded = 0;
   enemyPlaneImg1.onload = () => { enemyImagesLoaded++; };
   enemyPlaneImg2.onload = () => { enemyImagesLoaded++; };
   bossImg.onload = () => { enemyImagesLoaded++; };
+  rocketImg.onload = () => { enemyImagesLoaded++; };
 
   // Game state
   const game = {
@@ -602,7 +610,7 @@
     // Upgrade indicators
     ctx.font = '600 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
     ctx.fillText(`Bounce: ${upgrades.bouncingBall}/3`, W - 120, 10);
-    ctx.fillText(`Fireworks: ${upgrades.fireworks}/3`, W - 120, 28);
+    ctx.fillText(`Rockets: ${upgrades.fireworks}/3`, W - 120, 28);
     ctx.fillText(`Plasma: ${upgrades.plasmaBall}/3`, W - 120, 46);
     ctx.restore();
 
@@ -616,7 +624,7 @@
       ctx.textBaseline = 'middle';
       ctx.fillText('Rubber Hose Dogfight', W/2, H*0.25);
       ctx.font = '600 18px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
-      ctx.fillText('Move: Arrow Keys or A/D • Shoot: Space • Touch: Drag/Hold', W/2, H*0.25 + 36);
+      ctx.fillText('Move: Arrow Keys or WASD • Shoot: Space • Touch: Drag/Hold', W/2, H*0.25 + 36);
       ctx.restore();
     }
 
@@ -643,8 +651,8 @@
       ctx.fillText('Balls that bounce off walls', W/2, upgradeY + 20);
       
       ctx.fillStyle = upgrades.fireworks < 3 ? '#ff4444' : '#666';
-      ctx.fillText(`[2] Fireworks (${upgrades.fireworks}/3)`, W/2, upgradeY + spacing);
-      ctx.fillText('Explodes into homing particles', W/2, upgradeY + spacing + 20);
+      ctx.fillText(`[2] Rockets (${upgrades.fireworks}/3)`, W/2, upgradeY + spacing);
+      ctx.fillText('Homing missiles that track enemies', W/2, upgradeY + spacing + 20);
       
       ctx.fillStyle = upgrades.plasmaBall < 3 ? '#4444ff' : '#666';
       ctx.fillText(`[3] Plasma Ball (${upgrades.plasmaBall}/3)`, W/2, upgradeY + spacing*2);
@@ -822,19 +830,43 @@
     // Input handling
     const left = keys.has('ArrowLeft') || keys.has('a') || keys.has('A');
     const right = keys.has('ArrowRight') || keys.has('d') || keys.has('D');
+    const up = keys.has('ArrowUp') || keys.has('w') || keys.has('W');
+    const down = keys.has('ArrowDown') || keys.has('s') || keys.has('S');
     const shooting = keys.has(' ') || pointerDown;
 
-    // Move player
-    let vx = 0;
+    // Move player (free movement in all directions)
+    let vx = 0, vy = 0;
     if (left) vx -= 1;
     if (right) vx += 1;
-    if (pointerDown) {
-      // Mobile drag: move toward pointer
-      const dx = pointerX - player.x;
-      vx = clamp(dx / 200, -1.5, 1.5);
+    if (up) vy -= 1;
+    if (down) vy += 1;
+    
+    // Normalize diagonal movement so it's not faster
+    if (vx !== 0 && vy !== 0) {
+      const length = Math.sqrt(vx*vx + vy*vy);
+      vx /= length;
+      vy /= length;
     }
+    
+    if (pointerDown) {
+      // Mobile drag: move toward pointer position
+      const dx = pointerX - player.x;
+      const dy = pointerY - player.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 10) { // Dead zone for precise control
+        vx = Math.max(-1.5, Math.min(1.5, dx / 100));
+        vy = Math.max(-1.5, Math.min(1.5, dy / 100));
+      } else {
+        vx = 0; vy = 0;
+      }
+    }
+    
     player.x += vx * player.speed * dt;
+    player.y += vy * player.speed * dt;
+    
+    // Keep player within screen bounds
     player.x = clamp(player.x, 30, W-30);
+    player.y = clamp(player.y, 30, H-30);
 
     // Shooting
     player.shootCd -= dt;
@@ -885,7 +917,7 @@
       }
     }
     
-    // Fireworks - shoots 3 homing missiles every 4 seconds
+    // Rockets - shoots 3 homing missiles every 4 seconds
     if (upgrades.fireworks > 0) {
       fireworksTimer -= dt;
       if (fireworksTimer <= 0) {
@@ -1177,7 +1209,7 @@
       }
     }
     
-    // Fireworks - homing missiles
+    // Rockets - homing missiles
     for (let i = fireworks.length-1; i >= 0; i--) {
       const f = fireworks[i];
       
@@ -1259,7 +1291,7 @@
       // Bouncing balls (handle damage in update loop above to avoid double-hit)
       // This section is now handled in the update loop to prevent double damage
       
-      // Fireworks (homing missiles)
+      // Rockets (homing missiles)
       for (let j=fireworks.length-1; j>=0; j--) {
         const f = fireworks[j];
         if (dist2(e.x, e.y, f.x, f.y) < (e.radius + f.r) * (e.radius + f.r)) {
@@ -1457,6 +1489,51 @@
       ctx.arc(b.x, b.y, b.r, 0, TAU);
       ctx.fill();
     }
+    
+    // Bouncing balls
+    ctx.fillStyle = '#44aa44';
+    for (const b of bouncingBalls) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, TAU);
+      ctx.fill();
+    }
+    
+    // Fireworks (now rockets with image)
+    for (const f of fireworks) {
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      
+      // Calculate rocket rotation based on velocity direction
+      const angle = Math.atan2(f.vy, f.vx);
+      ctx.rotate(angle);
+      
+      // Draw rocket image
+      const rocketWidth = 20;
+      const rocketHeight = 12;
+      if (rocketImg.complete) {
+        ctx.drawImage(rocketImg, -rocketWidth/2, -rocketHeight/2, rocketWidth, rocketHeight);
+      } else {
+        // Fallback to red circle if image not loaded
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.arc(0, 0, f.r, 0, TAU);
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    }
+    
+    // Plasma balls
+    ctx.save();
+    ctx.shadowColor = '#4444ff';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#4444ff';
+    for (const p of plasmaBalls) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
     
     // Enemy bullets with different colors based on type
     for (const b of eBullets) {
