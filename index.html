@@ -654,19 +654,26 @@
   function startWave() {
     game.waveComplete = false;
     game.showUpgrades = false;
-    game.enemiesThisWave = Math.min(3 + game.wave * 2, 15); // 5-35 enemies per wave
+    game.enemiesThisWave = Math.max(3, Math.min(3 + game.wave * 2, 15)); // At least 3, max 15 enemies per wave
     game.enemiesKilledThisWave = 0;
     game.bossSpawned = false;
     
-    // Spawn all enemies for this wave
+    console.log(`Starting wave ${game.wave} - will spawn ${game.enemiesThisWave} enemies`);
+    
+    // Spawn all enemies for this wave with proper error handling
     for (let i = 0; i < game.enemiesThisWave; i++) {
       setTimeout(() => {
-        if (!game.over && !game.waveComplete) {
+        // More robust spawn conditions
+        if (!game.over && !game.showUpgrades) {
           if (game.wave >= 8 && i === Math.floor(game.enemiesThisWave / 2) && !game.bossSpawned) {
             spawnBoss();
+            console.log(`Spawned boss at enemy ${i}`);
           } else {
             spawnEnemy();
+            console.log(`Spawned enemy ${i+1}/${game.enemiesThisWave}`);
           }
+        } else {
+          console.log(`Skipped spawning enemy ${i+1} - game over: ${game.over}, showing upgrades: ${game.showUpgrades}`);
         }
       }, i * 1000); // Spawn every second
     }
@@ -675,10 +682,12 @@
   function completeWave() {
     if (game.wave >= game.maxWaves) {
       // Game completed!
+      console.log('All waves completed! Victory!');
       gameWin();
     } else {
       game.waveComplete = true;
       game.showUpgrades = true;
+      console.log(`Wave ${game.wave} completed, showing upgrades`);
       addShake(5);
       beep(440, 0.2, 'triangle', 0.3);
     }
@@ -686,6 +695,7 @@
 
   function nextWave() {
     game.wave++;
+    console.log(`Starting next wave: ${game.wave}`);
     startWave();
   }
 
@@ -877,9 +887,9 @@
 
     if (player.inv > 0) player.inv -= dt;
 
-    // Don't spawn enemies automatically - they're spawned per wave
-    // Check if wave is complete
-    if (!game.waveComplete && enemies.length === 0 && game.enemiesKilledThisWave >= game.enemiesThisWave) {
+    // Check if wave is complete - more robust checking
+    if (!game.waveComplete && !game.showUpgrades && enemies.length === 0 && game.enemiesKilledThisWave >= game.enemiesThisWave) {
+      console.log(`Wave ${game.wave} complete! Killed ${game.enemiesKilledThisWave}/${game.enemiesThisWave} enemies`);
       completeWave();
     }
 
