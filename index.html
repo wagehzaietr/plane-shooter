@@ -93,6 +93,47 @@
     pointerDown = true;
     pointerX = e.clientX;
     unlockAudio();
+    
+    // Handle upgrade selection on mobile
+    if (game.showUpgrades) {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      // Scale coordinates to canvas size
+      const canvasX = (clickX / rect.width) * W;
+      const canvasY = (clickY / rect.height) * H;
+      
+      // Check which upgrade was clicked
+      const upgradeY = H*0.45;
+      const spacing = 60;
+      const upgradeHeight = 40; // Height of each upgrade option
+      
+      // Bouncing Ball upgrade area
+      if (canvasY >= upgradeY - upgradeHeight/2 && canvasY <= upgradeY + upgradeHeight/2) {
+        if (upgrades.bouncingBall < 3) {
+          upgrades.bouncingBall++;
+          nextWave();
+          beep(440, 0.1, 'triangle', 0.3);
+        }
+      }
+      // Fireworks upgrade area  
+      else if (canvasY >= upgradeY + spacing - upgradeHeight/2 && canvasY <= upgradeY + spacing + upgradeHeight/2) {
+        if (upgrades.fireworks < 3) {
+          upgrades.fireworks++;
+          nextWave();
+          beep(550, 0.1, 'triangle', 0.3);
+        }
+      }
+      // Plasma Ball upgrade area
+      else if (canvasY >= upgradeY + spacing*2 - upgradeHeight/2 && canvasY <= upgradeY + spacing*2 + upgradeHeight/2) {
+        if (upgrades.plasmaBall < 3) {
+          upgrades.plasmaBall++;
+          nextWave();
+          beep(330, 0.1, 'triangle', 0.3);
+        }
+      }
+    }
   });
   canvas.addEventListener('pointerup', () => pointerDown = false);
   canvas.addEventListener('pointermove', e => pointerX = e.clientX, { passive: true });
@@ -605,7 +646,8 @@
       
       ctx.fillStyle = '#f7f0df';
       ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
-      ctx.fillText('Press 1, 2, or 3 to choose upgrade', W/2, H*0.8);
+      ctx.fillText('Press 1, 2, or 3 to choose upgrade', W/2, H*0.75);
+      ctx.fillText('Or tap/click on the upgrade you want', W/2, H*0.78);
       ctx.restore();
     }
 
